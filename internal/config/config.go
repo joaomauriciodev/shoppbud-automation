@@ -15,11 +15,10 @@ type Config struct {
 	GeminiAPIKey string `json:"gemini_api_key"`
 }
 
-// LoadConfig carrega as configurações do arquivo .env
+// LoadConfig carrega as configurações do arquivo .env (se existir) ou das variáveis de ambiente
 func LoadConfig(path string) (*Config, error) {
-	if err := godotenv.Load(path); err != nil {
-		return nil, fmt.Errorf("erro ao ler .env: %w", err)
-	}
+	// Em produção (ex: Railway) o .env não existe — as vars já estão no ambiente
+	_ = godotenv.Load(path)
 
 	cfg := &Config{
 		BaseURL:      os.Getenv("BASE_URL"),
@@ -31,6 +30,10 @@ func LoadConfig(path string) (*Config, error) {
 
 	if cfg.BaseURL == "" {
 		cfg.BaseURL = "https://api.shoppbud.com.br"
+	}
+
+	if cfg.Email == "" || cfg.Password == "" || cfg.GeminiAPIKey == "" {
+		return nil, fmt.Errorf("variáveis de ambiente obrigatórias não definidas (EMAIL, PASSWORD, GEMINI_API_KEY)")
 	}
 
 	return cfg, nil

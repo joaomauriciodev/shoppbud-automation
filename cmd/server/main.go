@@ -172,7 +172,6 @@ type buscarProdutoResponse struct {
 	Nome   string `json:"nome,omitempty"`
 }
 
-
 func (s *appServer) buscarProdutoHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		writeJSON(w, http.StatusMethodNotAllowed, errResponse{"método não permitido"})
@@ -203,7 +202,6 @@ func (s *appServer) buscarProdutoHandler(w http.ResponseWriter, r *http.Request)
 		Nome:   first.Name,
 	})
 }
-
 
 func (s *appServer) integrarHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
