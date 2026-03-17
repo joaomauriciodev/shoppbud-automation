@@ -2,9 +2,12 @@ package main
 
 import (
 	_ "embed"
+	"crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"io"
 	"log"
 	"math"
@@ -12,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 
 	"shoppbud-automation/internal/auth"
 	"shoppbud-automation/internal/config"
@@ -22,12 +26,97 @@ import (
 //go:embed static/index.html
 var indexHTML []byte
 
+//go:embed static/login.html
+var loginHTML []byte
+
 const (
 	configPath        = ".env"
 	maxUploadBytes    = 10 << 20 // 10 MB
 	defaultPort       = "8080"
 	categoriaIDPadrao = "23769"
+	adminUser         = "admin"
+	adminPassword     = "senhaAdmin!123"
+	sessionCookie     = "session"
 )
+
+var (
+	sessions   = map[string]bool{}
+	sessionsMu sync.Mutex
+	loginTmpl  = template.Must(template.New("login").Parse(string(loginHTML)))
+)
+
+func newSession() string {
+	b := make([]byte, 16)
+	rand.Read(b)
+	token := hex.EncodeToString(b)
+	sessionsMu.Lock()
+	sessions[token] = true
+	sessionsMu.Unlock()
+	return token
+}
+
+func isAuthenticated(r *http.Request) bool {
+	c, err := r.Cookie(sessionCookie)
+	if err != nil {
+		return false
+	}
+	sessionsMu.Lock()
+	defer sessionsMu.Unlock()
+	return sessions[c.Value]
+}
+
+func authMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !isAuthenticated(r) {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func loginHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		loginTmpl.Execute(w, map[string]bool{"Erro": r.URL.Query().Get("erro") == "1"})
+		return
+	}
+	if r.Method == http.MethodPost {
+		user := r.FormValue("username")
+		pass := r.FormValue("password")
+		if user == adminUser && pass == adminPassword {
+			token := newSession()
+			http.SetCookie(w, &http.Cookie{
+				Name:     sessionCookie,
+				Value:    token,
+				Path:     "/",
+				HttpOnly: true,
+				SameSite: http.SameSiteLaxMode,
+			})
+			http.Redirect(w, r, "/", http.StatusSeeOther)
+			return
+		}
+		http.Redirect(w, r, "/login?erro=1", http.StatusSeeOther)
+		return
+	}
+	http.NotFound(w, r)
+}
+
+func logoutHandler(w http.ResponseWriter, r *http.Request) {
+	c, err := r.Cookie(sessionCookie)
+	if err == nil {
+		sessionsMu.Lock()
+		delete(sessions, c.Value)
+		sessionsMu.Unlock()
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:   sessionCookie,
+		Value:  "",
+		Path:   "/",
+		MaxAge: -1,
+	})
+	http.Redirect(w, r, "/login", http.StatusSeeOther)
+}
 
 type appServer struct {
 	ocrClient     *ocr.Client
@@ -333,12 +422,17 @@ func main() {
 		port = defaultPort
 	}
 
+	protected := http.NewServeMux()
+	protected.HandleFunc("/", indexHandler)
+	protected.HandleFunc("/ocr", s.ocrHandler)
+	protected.HandleFunc("/integrar", s.integrarHandler)
+	protected.HandleFunc("/categorias", s.categoriasHandler)
+	protected.HandleFunc("/buscar-produto", s.buscarProdutoHandler)
+	protected.HandleFunc("/logout", logoutHandler)
+
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", indexHandler)
-	mux.HandleFunc("/ocr", s.ocrHandler)
-	mux.HandleFunc("/integrar", s.integrarHandler)
-	mux.HandleFunc("/categorias", s.categoriasHandler)
-	mux.HandleFunc("/buscar-produto", s.buscarProdutoHandler)
+	mux.HandleFunc("/login", loginHandler)
+	mux.Handle("/", authMiddleware(protected))
 
 	addr := fmt.Sprintf(":%s", port)
 	log.Printf("Servidor em http://localhost%s", addr)

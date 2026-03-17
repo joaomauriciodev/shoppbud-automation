@@ -38,7 +38,24 @@
       gap: 0.8rem;
       box-shadow: 0 2px 6px rgba(0,0,0,0.25);
     }
-    header h1 { font-size: 1.15rem; font-weight: 700; }
+    header h1 { font-size: 1.15rem; font-weight: 700; flex: 1; }
+    .btn-logout {
+      background: rgba(255,255,255,0.15);
+      color: white;
+      border: 1px solid rgba(255,255,255,0.35);
+      border-radius: 7px;
+      padding: 0.35rem 0.85rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+    .btn-logout:hover { background: rgba(255,255,255,0.25); }
 
     /* Steps indicator */
     .steps {
@@ -446,6 +463,12 @@
     <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
   </svg>
   <h1>ShoppBud — Importação por Cupom</h1>
+  <a href="/logout" class="btn-logout">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+    </svg>
+    Sair
+  </a>
 </header>
 
 <div class="container">
