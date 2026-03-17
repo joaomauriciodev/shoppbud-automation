@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go build:*)",
+      "WebFetch(domain:nfeweb.sefaz.go.gov.br)",
+      "WebSearch",
+      "WebFetch(domain:www.nfe.fazenda.gov.br)",
+      "Bash(touch /c/dev/shoppbud-automation/cupons/.gitkeep && go get github.com/anthropics/anthropic-sdk-go@latest 2>&1 | tail -5)",
+      "Bash(go get:*)",
+      "Bash(go mod:*)",
+      "Bash(go vet:*)"
+    ]
+  }
+}

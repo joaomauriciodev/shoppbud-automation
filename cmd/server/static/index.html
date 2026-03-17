@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ShoppBud — Importação por Cupom</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary:       #1565C0;
+      --primary-dark:  #0D47A1;
+      --primary-light: #E3F2FD;
+      --success:       #2E7D32;
+      --danger:        #C62828;
+      --bg:            #F0F4F8;
+      --card:          #FFFFFF;
+      --border:        #DEE4EC;
+      --text:          #1A202C;
+      --muted:         #64748B;
+      --radius:        10px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* Header */
+    header {
+      background: var(--primary);
+      color: white;
+      padding: 0.9rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    }
+    header h1 { font-size: 1.15rem; font-weight: 700; }
+
+    /* Steps indicator */
+    .steps {
+      display: flex;
+      gap: 0;
+      margin-bottom: 0.25rem;
+    }
+    .step {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.78rem;
+      color: var(--muted);
+      padding: 0.35rem 0.75rem;
+    }
+    .step.active { color: var(--primary); font-weight: 600; }
+    .step.done   { color: var(--success); }
+    .step-num {
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      font-weight: 700;
+      border: 2px solid currentColor;
+      flex-shrink: 0;
+    }
+    .step-sep { color: var(--border); font-size: 0.9rem; align-self: center; }
+
+    /* Container */
+    .container {
+      max-width: 1080px;
+      margin: 1.75rem auto;
+      padding: 0 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    /* Card */
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 0.85rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .card-body { padding: 1.5rem; }
+
+    /* Upload zone */
+    .upload-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 2.5rem 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.18s;
+      position: relative;
+    }
+    .upload-zone:hover,
+    .upload-zone.drag-over {
+      border-color: var(--primary);
+      background: var(--primary-light);
+    }
+    .upload-zone input[type=file] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+    .upload-icon { font-size: 2.8rem; margin-bottom: 0.75rem; }
+    .upload-zone p { color: var(--muted); font-size: 0.88rem; line-height: 1.6; }
+    .upload-zone strong { color: var(--primary); }
+
+    /* Two-column layout for preview */
+    .preview-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      align-items: center;
+    }
+    @media (max-width: 680px) { .preview-grid { grid-template-columns: 1fr; } }
+
+    .preview-box {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: #F8FAFC;
+      min-height: 180px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .preview-box img {
+      width: 100%;
+      height: auto;
+      max-height: 380px;
+      object-fit: contain;
+      display: block;
+    }
+    .preview-info {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .preview-info p { color: var(--muted); font-size: 0.88rem; line-height: 1.6; }
+    .file-name {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 0.5rem;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.6rem 1.2rem;
+      border: none;
+      border-radius: 7px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      line-height: 1;
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover:not(:disabled) { background: var(--primary-dark); }
+    .btn-success { background: var(--success); color: white; }
+    .btn-success:hover:not(:disabled) { background: #1B5E20; }
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover:not(:disabled) { background: var(--bg); color: var(--text); }
+    .btn-sm { padding: 0.3rem 0.65rem; font-size: 0.78rem; }
+
+    .btn-row { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; }
+
+    /* Spinner */
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.35);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.65s linear infinite;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Table */
+    .table-wrap { overflow-x: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+    th {
+      background: #F8FAFC;
+      padding: 0.6rem 0.85rem;
+      text-align: left;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      border-bottom: 2px solid var(--border);
+      white-space: nowrap;
+    }
+    td {
+      padding: 0.45rem 0.85rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #F8FAFC; }
+
+    td input {
+      width: 100%;
+      border: 1px solid transparent;
+      border-radius: 5px;
+      padding: 0.3rem 0.45rem;
+      font-size: 0.875rem;
+      font-family: inherit;
+      background: transparent;
+      color: var(--text);
+      transition: border-color 0.15s, background 0.15s;
+    }
+    td input:hover { border-color: var(--border); }
+    td input:focus { outline: none; border-color: var(--primary); background: white; box-shadow: 0 0 0 3px rgba(21,101,192,0.1); }
+    td input[type=number] { -moz-appearance: textfield; }
+    td input[type=number]::-webkit-inner-spin-button,
+    td input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+    .del-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 1rem;
+      padding: 0.25rem 0.4rem;
+      border-radius: 5px;
+      transition: all 0.15s;
+      line-height: 1;
+    }
+    .del-btn:hover { background: #FEE2E2; color: var(--danger); }
+
+    .table-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 1rem;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    /* Badge */
+    .badge {
+      background: var(--primary);
+      color: white;
+      border-radius: 999px;
+      padding: 0.1rem 0.55rem;
+      font-size: 0.72rem;
+      font-weight: 700;
+      margin-left: 0.35rem;
+    }
+
+    /* Results */
+    .result-list { display: flex; flex-direction: column; gap: 0.5rem; }
+    .result-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 0.7rem 1rem;
+      border-radius: 7px;
+      font-size: 0.875rem;
+    }
+    .result-item.ok    { background: #F0FDF4; color: #14532D; border: 1px solid #BBF7D0; }
+    .result-item.fail  { background: #FFF1F2; color: #881337; border: 1px solid #FECDD3; }
+    .result-icon { font-size: 1rem; margin-top: 0.05rem; flex-shrink: 0; }
+    .result-name { font-weight: 600; }
+    .result-detail { font-size: 0.8rem; opacity: 0.75; }
+
+    /* Summary bar */
+    .summary {
+      display: flex;
+      gap: 1.5rem;
+      padding: 0.85rem 1.25rem;
+      background: #F8FAFC;
+      border-radius: 7px;
+      border: 1px solid var(--border);
+      margin-bottom: 1rem;
+      font-size: 0.85rem;
+      flex-wrap: wrap;
+    }
+    .summary-item { display: flex; align-items: center; gap: 0.4rem; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .dot.green { background: var(--success); }
+    .dot.red   { background: var(--danger); }
+
+    /* EAN status */
+    .ean-cell { display: flex; flex-direction: column; gap: 3px; }
+    .ean-tag {
+      font-size: 0.68rem;
+      font-weight: 600;
+      padding: 0.12rem 0.5rem;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      width: fit-content;
+    }
+    .ean-tag.exists { background: #FEF3C7; color: #92400E; border: 1px solid #FDE68A; }
+    .ean-tag.novo   { background: #DCFCE7; color: #15803D; border: 1px solid #BBF7D0; }
+    .spinner-sm {
+      display: inline-block;
+      width: 9px; height: 9px;
+      border: 1.5px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.65s linear infinite;
+      flex-shrink: 0;
+    }
+
+    /* Empty row */
+    .empty-row td {
+      text-align: center;
+      padding: 2.5rem;
+      color: var(--muted);
+      font-size: 0.875rem;
+    }
+
+    .hidden { display: none !important; }
+
+    /* ── Category select ─────────────────────────────── */
+    .cat-select {
+      width: 100%;
+      border: 1px solid transparent;
+      border-radius: 5px;
+      padding: 0.3rem 0.4rem;
+      font-size: 0.82rem;
+      font-family: inherit;
+      background: transparent;
+      color: var(--text);
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      max-width: 180px;
+    }
+    .cat-select:hover { border-color: var(--border); }
+    .cat-select:focus { outline: none; border-color: var(--primary); background: white; box-shadow: 0 0 0 3px rgba(21,101,192,0.1); }
+    .cat-select:disabled { opacity: 0.5; cursor: wait; }
+
+    /* ── Log ─────────────────────────────────────────── */
+    .log-wrap {
+      max-height: 340px;
+      overflow-y: auto;
+    }
+    .log-empty {
+      text-align: center;
+      padding: 2rem;
+      color: var(--muted);
+      font-size: 0.875rem;
+    }
+    .log-time {
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 0.78rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .log-badge {
+      display: inline-block;
+      padding: 0.15rem 0.55rem;
+      border-radius: 999px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .log-badge.ok   { background: #DCFCE7; color: #15803D; }
+    .log-badge.fail { background: #FEE2E2; color: #B91C1C; }
+    .log-detail {
+      font-size: 0.8rem;
+      color: var(--muted);
+      max-width: 260px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .log-arquivo {
+      font-size: 0.75rem;
+      color: var(--muted);
+      max-width: 140px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Image cell */
+    .img-thumb {
+      width: 38px; height: 38px;
+      object-fit: cover;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      display: block;
+    }
+    .img-upload-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 0.22rem 0.55rem;
+      border-radius: 5px;
+      border: 1px dashed var(--border);
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .img-upload-label:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
+  </style>
+</head>
+<body>
+
+<header>
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+  </svg>
+  <h1>ShoppBud — Importação por Cupom</h1>
+</header>
+
+<div class="container">
+
+  <!-- STEP 1: Upload -->
+  <div class="card" id="cardUpload">
+    <div class="card-header">
+      <span>1 · Enviar imagem do cupom</span>
+    </div>
+    <div class="card-body">
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" id="fileInput" accept="image/*">
+        <div class="upload-icon">🧾</div>
+        <p><strong>Clique aqui</strong> ou arraste a foto do cupom</p>
+        <p>JPG · PNG · WEBP &mdash; máx. 10 MB</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2: Preview + OCR -->
+  <div class="card hidden" id="cardPreview">
+    <div class="card-header">
+      <span>2 · Verificar imagem e processar OCR</span>
+      <button class="btn btn-ghost btn-sm" onclick="resetar()">← Trocar imagem</button>
+    </div>
+    <div class="card-body">
+      <div class="preview-grid">
+        <div>
+          <div class="preview-box">
+            <img id="previewImg" src="" alt="Prévia do cupom">
+          </div>
+          <p class="file-name" id="fileName"></p>
+        </div>
+        <div class="preview-info">
+          <p>Confirme que a imagem está legível e clique em <strong>Processar OCR</strong> para extrair os produtos usando o Google Cloud Vision.</p>
+          <div class="btn-row">
+            <button class="btn btn-primary" id="btnOcr" onclick="processarOCR()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              Processar OCR
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 3: Products table -->
+  <div class="card hidden" id="cardProdutos">
+    <div class="card-header">
+      <span>3 · Revisar produtos<span class="badge" id="totalBadge">0</span></span>
+      <button class="btn btn-ghost btn-sm" onclick="resetar()">← Nova imagem</button>
+    </div>
+    <div class="card-body">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:22%">Nome do produto</th>
+              <th style="width:18%">EAN / Código de barras</th>
+              <th style="width:9%">Preço (R$)</th>
+              <th style="width:5%">Qtd</th>
+              <th style="width:17%">Categoria</th>
+              <th style="width:13%">Imagem</th>
+              <th style="width:4%"></th>
+            </tr>
+          </thead>
+          <tbody id="produtosTbody"></tbody>
+        </table>
+      </div>
+      <div class="table-actions">
+        <button class="btn btn-ghost btn-sm" onclick="adicionarLinha()">
+          + Adicionar produto
+        </button>
+        <div class="btn-row">
+          <button class="btn btn-success" id="btnIntegrar" onclick="integrar()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            Integrar ao ShoppBud
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 4: Results -->
+  <div class="card hidden" id="cardResultados">
+    <div class="card-header">
+      <span>4 · Resultado da integração</span>
+    </div>
+    <div class="card-body">
+      <div class="summary" id="summaryBar"></div>
+      <div class="result-list" id="resultList"></div>
+      <div class="btn-row" style="margin-top:1.25rem">
+        <button class="btn btn-primary" onclick="resetar()">Nova importação</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOG -->
+  <div class="card" id="cardLog">
+    <div class="card-header">
+      <span>
+        Histórico de integrações
+        <span class="badge" id="logBadge" style="background:var(--muted)">0</span>
+      </span>
+      <button class="btn btn-ghost btn-sm" onclick="limparLog()">Limpar</button>
+    </div>
+    <div class="log-wrap">
+      <div class="log-empty" id="logEmpty">Nenhuma integração realizada nesta sessão.</div>
+      <table id="logTable" class="hidden">
+        <thead>
+          <tr>
+            <th style="width:10%">Horário</th>
+            <th style="width:16%">Arquivo</th>
+            <th style="width:36%">Produto</th>
+            <th style="width:9%">Status</th>
+            <th>Detalhe</th>
+          </tr>
+        </thead>
+        <tbody id="logTbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+  'use strict';
+
+  let produtos = [];
+  let logEntries = [];
+  let categorias = [];
+  const CAT_PADRAO = '23769';
+
+  const $ = id => document.getElementById(id);
+
+  // Carrega log persistido do localStorage ao abrir a página
+  loadLog();
+
+  // ── File handling ─────────────────────────────────────────────────
+
+  const uploadZone = $('uploadZone');
+
+  uploadZone.addEventListener('dragover', e => {
+    e.preventDefault();
+    uploadZone.classList.add('drag-over');
+  });
+  uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+  uploadZone.addEventListener('drop', e => {
+    e.preventDefault();
+    uploadZone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(file);
+  });
+
+  $('fileInput').addEventListener('change', e => {
+    if (e.target.files[0]) handleFile(e.target.files[0]);
+  });
+
+  function handleFile(file) {
+    const reader = new FileReader();
+    reader.onload = e => { $('previewImg').src = e.target.result; };
+    reader.readAsDataURL(file);
+
+    uploadZone._file = file;
+    $('fileName').textContent = file.name + '  (' + (file.size / 1024).toFixed(0) + ' KB)';
+
+    show('cardPreview');
+    hide('cardUpload', 'cardProdutos', 'cardResultados');
+  }
+
+  // ── OCR ───────────────────────────────────────────────────────────
+
+  async function processarOCR() {
+    const file = uploadZone._file;
+    if (!file) return;
+
+    const btn = $('btnOcr');
+    setLoading(btn, 'Processando...');
+
+    try {
+      const fd = new FormData();
+      fd.append('imagem', file);
+
+      const resp = await fetch('/ocr', { method: 'POST', body: fd });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.erro || 'Erro desconhecido');
+
+      produtos = (data.produtos || []).map((p, i) => ({
+        ...p, categoriaID: CAT_PADRAO, _key: i,
+        _eanVerificado: false, _eanExiste: false, _eanExisteID: null,
+        _imagemBase64: null, _imagemMime: null, _imagemNome: null,
+      }));
+      renderTabela();
+      carregarCategorias();
+
+      hide('cardPreview');
+      show('cardProdutos');
+
+    } catch (err) {
+      alert('Erro ao processar OCR:\n' + err.message);
+    } finally {
+      resetLoading(btn, `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> Processar OCR`);
+    }
+  }
+
+  // ── Table ─────────────────────────────────────────────────────────
+
+  function renderTabela() {
+    const tbody = $('produtosTbody');
+    tbody.innerHTML = '';
+    $('totalBadge').textContent = produtos.length;
+
+    if (produtos.length === 0) {
+      const tr = document.createElement('tr');
+      tr.className = 'empty-row';
+      tr.innerHTML = '<td colspan="5">Nenhum produto encontrado. Use "+ Adicionar produto" para incluir manualmente.</td>';
+      tbody.appendChild(tr);
+      return;
+    }
+
+    produtos.forEach((p, i) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input type="text"   value="${esc(p.nome)}"            oninput="produtos[${i}].nome=this.value"                    placeholder="Nome do produto"></td>
+        <td><div class="ean-cell">
+              <input type="text" value="${esc(p.codigoEAN || '')}" data-ean-idx="${i}" placeholder="Código EAN">
+              <div id="ean-status-${i}"></div>
+            </div></td>
+        <td><input type="number" value="${p.preco}"                oninput="produtos[${i}].preco=parseFloat(this.value)||0"     step="0.01" min="0" placeholder="0,00"></td>
+        <td><input type="number" value="${p.quantidade}"           oninput="produtos[${i}].quantidade=parseFloat(this.value)||1" step="1" min="1"></td>
+        <td><select class="cat-select" id="cat-${i}" onchange="produtos[${i}].categoriaID=this.value" disabled>
+              <option value="">Carregando...</option>
+            </select></td>
+        <td id="img-cell-${i}">${renderImagemCellContent(i)}</td>
+        <td><button class="del-btn" onclick="removerLinha(${i})" title="Remover">✕</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+    // Preenche os selects se as categorias já foram carregadas
+    if (categorias.length > 0) preencherSelects();
+    // Verifica EANs já preenchidos
+    produtos.forEach((p, i) => {
+      if (p.codigoEAN && p.codigoEAN.trim().length >= 8) verificarEAN(i, p.codigoEAN.trim());
+    });
+  }
+
+  function adicionarLinha() {
+    produtos.push({ nome: '', codigoEAN: '', preco: 0, quantidade: 1, categoriaID: CAT_PADRAO, _key: Date.now(), _eanVerificado: false, _eanExiste: false, _eanExisteID: null, _imagemBase64: null, _imagemMime: null, _imagemNome: null });
+    renderTabela();
+    const rows = $('produtosTbody').querySelectorAll('tr');
+    if (rows.length) rows[rows.length - 1].querySelector('input')?.focus();
+  }
+
+  function removerLinha(i) {
+    produtos.splice(i, 1);
+    renderTabela();
+  }
+
+  // ── Integration ───────────────────────────────────────────────────
+
+  async function integrar() {
+    // Produtos sem código de barras
+    const semEAN = produtos.filter(p => p.nome.trim() && !p.codigoEAN.trim());
+    if (semEAN.length > 0) {
+      const nomes = semEAN.map(p => '• ' + p.nome).join('\n');
+      alert(`Os seguintes produtos não têm código de barras e não podem ser integrados:\n\n${nomes}\n\nPreencha o EAN antes de continuar.`);
+      return;
+    }
+
+    // Produtos com EAN ainda não verificado
+    const semVerificacao = produtos.filter(p => p.nome.trim() && p.codigoEAN.trim() && !p._eanVerificado);
+    if (semVerificacao.length > 0) {
+      alert('Aguarde a verificação do código de barras de todos os produtos antes de integrar.');
+      return;
+    }
+
+    const validos = produtos.filter(p =>
+      p.nome.trim() &&
+      p.preco > 0 &&
+      p.codigoEAN.trim()
+    ).map(p => ({
+      nome: p.nome,
+      codigoEAN: p.codigoEAN,
+      preco: p.preco,
+      quantidade: p.quantidade,
+      categoriaID: p.categoriaID,
+      imagemBase64: (!p._eanExiste && p._imagemBase64) ? (p._imagemBase64 || '') : '',
+      imagemNome: (!p._eanExiste && p._imagemBase64) ? (p._imagemNome || '') : '',
+    }));
+
+    if (validos.length === 0) {
+      alert('Nenhum produto válido para integrar.\nVerifique se todos têm nome, preço e código de barras.');
+      return;
+    }
+
+    const ignorados = produtos.length - validos.length;
+    if (ignorados > 0) {
+      const ok = confirm(
+        `${ignorados} produto(s) serão ignorados (sem nome, preço ou código de barras).\n\n` +
+        `Deseja continuar com ${validos.length} produto(s)?`
+      );
+      if (!ok) return;
+    }
+
+    const btn = $('btnIntegrar');
+    setLoading(btn, 'Integrando...');
+
+    try {
+      const resp = await fetch('/integrar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ produtos: validos }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.erro || 'Erro desconhecido');
+
+      const resultados = data.resultados || [];
+      renderResultados(resultados);
+      appendLog(resultados, uploadZone._file?.name || '—');
+      hide('cardProdutos');
+      show('cardResultados');
+
+    } catch (err) {
+      alert('Erro ao integrar:\n' + err.message);
+    } finally {
+      resetLoading(btn, `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Integrar ao ShoppBud`);
+    }
+  }
+
+  function renderResultados(resultados) {
+    const ok    = resultados.filter(r => !r.erro).length;
+    const fail  = resultados.filter(r =>  r.erro).length;
+
+    $('summaryBar').innerHTML = `
+      <div class="summary-item"><span class="dot green"></span> <strong>${ok}</strong> criado(s) com sucesso</div>
+      ${fail ? `<div class="summary-item"><span class="dot red"></span> <strong>${fail}</strong> com erro</div>` : ''}
+    `;
+
+    const list = $('resultList');
+    list.innerHTML = '';
+    resultados.forEach(r => {
+      const div = document.createElement('div');
+      const success = !r.erro;
+      div.className = 'result-item ' + (success ? 'ok' : 'fail');
+      div.innerHTML = `
+        <span class="result-icon">${success ? '✓' : '✗'}</span>
+        <div>
+          <div class="result-name">${esc(r.nome)}</div>
+          <div class="result-detail">
+            ${success
+              ? 'Produto criado com sucesso' + (r.id ? ' &mdash; ID: ' + r.id : '')
+              : esc(r.erro)}
+          </div>
+        </div>
+      `;
+      list.appendChild(div);
+    });
+  }
+
+  // ── EAN lookup ────────────────────────────────────────────────────
+
+  const eanTimers = {};
+
+  // Listener delegado: captura qualquer input num campo data-ean-idx dentro do tbody
+  $('produtosTbody').addEventListener('input', e => {
+    const inp = e.target;
+    if (!inp.hasAttribute('data-ean-idx')) return;
+    const i = parseInt(inp.dataset.eanIdx, 10);
+    atualizarEAN(i, inp.value);
+  });
+
+  function atualizarEAN(i, val) {
+    if (produtos[i] !== undefined) {
+      produtos[i].codigoEAN = val;
+      produtos[i]._eanVerificado = false;
+      produtos[i]._eanExiste = false;
+      produtos[i]._eanExisteID = null;
+      produtos[i]._imagemBase64 = null;
+      produtos[i]._imagemMime = null;
+      produtos[i]._imagemNome = null;
+    }
+    clearTimeout(eanTimers[i]);
+    const el = document.getElementById('ean-status-' + i);
+    if (!el) return;
+    const clean = val.trim();
+    if (clean.length < 8) { el.innerHTML = ''; return; }
+    el.innerHTML = '<span class="ean-tag"><span class="spinner-sm"></span></span>';
+    eanTimers[i] = setTimeout(() => verificarEAN(i, clean), 600);
+  }
+
+  async function verificarEAN(i, ean) {
+    const el = document.getElementById('ean-status-' + i);
+    if (!el) return;
+    el.innerHTML = '<span class="ean-tag"><span class="spinner-sm"></span></span>';
+    if (produtos[i]) produtos[i]._eanVerificado = false;
+    try {
+      const resp = await fetch('/buscar-produto?barCode=' + encodeURIComponent(ean));
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const data = await resp.json();
+      if (produtos[i]) {
+        produtos[i]._eanExiste  = data.existe;
+        produtos[i]._eanExisteID = data.id || null;
+        produtos[i]._eanVerificado = true;
+      }
+      if (data.existe) {
+        const info = data.id ? ` · ID&nbsp;${data.id}` : '';
+        el.innerHTML = `<span class="ean-tag exists" title="${esc(data.nome || '')}">Já existe${info}</span>`;
+      } else {
+        el.innerHTML = '<span class="ean-tag novo">Novo</span>';
+        atualizarCelulaImagem(i);
+      }
+    } catch (e) {
+      console.error('Erro ao verificar EAN:', e);
+      el.innerHTML = '<span class="ean-tag" style="background:#FEE2E2;color:#B91C1C;border:1px solid #FECACA">Erro</span>';
+    }
+  }
+
+  // ── Image upload ──────────────────────────────────────────────────
+
+  function renderImagemCellContent(i) {
+    const p = produtos[i];
+    if (!p || p._eanExiste || !p._eanVerificado) return '';
+    if (p._imagemBase64) {
+      return `<img class="img-thumb" src="data:${esc(p._imagemMime)};base64,${p._imagemBase64}" title="${esc(p._imagemNome)}">`;
+    }
+    return `
+      <input type="file" accept="image/*" id="img-input-${i}" style="display:none" onchange="handleImagemUpload(this,${i})">
+      <label for="img-input-${i}" class="img-upload-label">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Enviar
+      </label>`;
+  }
+
+  function atualizarCelulaImagem(i) {
+    const cell = document.getElementById('img-cell-' + i);
+    if (cell) cell.innerHTML = renderImagemCellContent(i);
+  }
+
+  function handleImagemUpload(input, i) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const dataURL = e.target.result;
+      const mime = dataURL.split(';')[0].split(':')[1];
+      const base64 = dataURL.split(',')[1];
+      if (produtos[i]) {
+        produtos[i]._imagemBase64 = base64;
+        produtos[i]._imagemMime = mime;
+        produtos[i]._imagemNome = file.name;
+      }
+      atualizarCelulaImagem(i);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // ── Categories ────────────────────────────────────────────────────
+
+  async function carregarCategorias() {
+    try {
+      const resp = await fetch('/categorias?page=1&perPage=100');
+      const data = await resp.json();
+      // A API pode retornar { data: [...] } ou diretamente um array
+      categorias = Array.isArray(data) ? data : (data.data ?? data.categories ?? []);
+      categorias.sort((a, b) => String(a.name).localeCompare(String(b.name), 'pt-BR'));
+      preencherSelects();
+    } catch (e) {
+      console.warn('Não foi possível carregar categorias:', e);
+    }
+  }
+
+  function preencherSelects() {
+    const opts = categorias.map(c =>
+      `<option value="${c.id}">${esc(c.name)}</option>`
+    ).join('');
+
+    produtos.forEach((p, i) => {
+      const sel = document.getElementById('cat-' + i);
+      if (!sel) return;
+      sel.innerHTML = opts;
+      sel.value = p.categoriaID || CAT_PADRAO;
+      // Se a categoria salva não existe na lista, usa a padrão
+      if (!sel.value) sel.value = CAT_PADRAO;
+      produtos[i].categoriaID = sel.value;
+      sel.disabled = false;
+    });
+  }
+
+  // ── Log ───────────────────────────────────────────────────────────
+
+  function appendLog(resultados, arquivo) {
+    const now = new Date();
+    resultados.forEach(r => {
+      logEntries.unshift({ time: now.toISOString(), arquivo, nome: r.nome, ok: !r.erro, id: r.id, erro: r.erro });
+    });
+    saveLog();
+    renderLog();
+  }
+
+  function renderLog() {
+    $('logBadge').textContent = logEntries.length;
+
+    if (logEntries.length === 0) {
+      show('logEmpty');
+      hide('logTable');
+      return;
+    }
+
+    hide('logEmpty');
+    show('logTable');
+
+    const tbody = $('logTbody');
+    tbody.innerHTML = '';
+    logEntries.forEach(entry => {
+      const tr = document.createElement('tr');
+      const detalhe = entry.ok
+        ? (entry.id ? 'ID: ' + entry.id : '—')
+        : esc(entry.erro);
+      tr.innerHTML = `
+        <td class="log-time">${fmtDateTime(entry.time)}</td>
+        <td class="log-arquivo" title="${esc(entry.arquivo)}">${esc(entry.arquivo)}</td>
+        <td>${esc(entry.nome)}</td>
+        <td><span class="log-badge ${entry.ok ? 'ok' : 'fail'}">${entry.ok ? 'criado' : 'erro'}</span></td>
+        <td class="log-detail" title="${detalhe}">${detalhe}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function limparLog() {
+    logEntries = [];
+    saveLog();
+    renderLog();
+  }
+
+  function saveLog() {
+    try {
+      localStorage.setItem('shoppbud_log', JSON.stringify(logEntries));
+    } catch (e) { /* quota exceeded — silencioso */ }
+  }
+
+  function loadLog() {
+    try {
+      const raw = localStorage.getItem('shoppbud_log');
+      if (raw) {
+        logEntries = JSON.parse(raw);
+        renderLog();
+      }
+    } catch (e) {
+      logEntries = [];
+    }
+  }
+
+  function fmtDateTime(iso) {
+    const d = new Date(iso);
+    const date = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+    const time = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    return `${date} ${time}`;
+  }
+
+  // ── Navigation ────────────────────────────────────────────────────
+
+  function voltarProdutos() {
+    hide('cardResultados');
+    show('cardProdutos');
+  }
+
+  function resetar() {
+    produtos = [];
+    $('fileInput').value = '';
+    uploadZone._file = null;
+    $('previewImg').src = '';
+    $('fileName').textContent = '';
+    $('produtosTbody').innerHTML = '';
+    show('cardUpload');
+    hide('cardPreview', 'cardProdutos', 'cardResultados');
+  }
+
+  // ── Utilities ─────────────────────────────────────────────────────
+
+  function show(...ids)  { ids.forEach(id => $(id).classList.remove('hidden')); }
+  function hide(...ids)  { ids.forEach(id => $(id).classList.add('hidden')); }
+
+  function esc(str) {
+    return String(str ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  function setLoading(btn, label) {
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spinner"></span> ${label}`;
+  }
+
+  function resetLoading(btn, html) {
+    btn.disabled = false;
+    btn.innerHTML = html;
+  }
+</script>
+</body>
+</html>
